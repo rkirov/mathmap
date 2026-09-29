@@ -13,7 +13,7 @@ reading without exercises: recorded, but it never unlocks anything.
 - [[avigad-de-moura-theorem-proving-in-lean-4]]
 
 ## Reading
-- [[axler-linear-algebra]] — started 06'26 — Lean: https://github.com/rkirov/linear-algebra-done-right-lean
+- [[axler-linear-algebra]] — started 06'26 — Lean: https://github.com/rkirov/linear-algebra-done-right-lean/tree/main/LinearAlgebraDoneRightLean
 - [[lawvere-schanuel-conceptual-mathematics]]
 
 ## Skimmed

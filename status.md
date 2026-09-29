@@ -15,7 +15,6 @@ reading without exercises: recorded, but it never unlocks anything.
 ## Reading
 - [[axler-linear-algebra]] — started 06'26 — Lean: https://github.com/rkirov/linear-algebra-done-right-lean
 - [[lawvere-schanuel-conceptual-mathematics]]
-- [[riehl-category-theory-in-context]] — chapter 1 only, paused — Lean: https://github.com/rkirov/category-theory-in-context-lean
 
 ## Skimmed
 - [[rudin-principles-mathematical-analysis]] — alongside Tao I

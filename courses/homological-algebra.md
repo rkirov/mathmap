@@ -1,8 +1,13 @@
+---
+area: categories
+mathlib: partial
+---
 # Homological Algebra
 
 ## Members
 - [[rotman-homological-algebra]]
 - [[weibel-homological-algebra]]
+- [[borcherds-homological-algebra-videos]]
 
 ## Notes
 Chain complexes, derived functors, Ext, Tor, spectral sequences,

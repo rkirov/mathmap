@@ -1,6 +1,7 @@
 # Koblitz, Introduction to Elliptic Curves and Modular Forms
 
 ## Prerequisites
+- [[algebra-basic]]
 - [[number-theory-basic]]
 - [[complex-analysis]]
 

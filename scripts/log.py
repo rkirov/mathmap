@@ -35,6 +35,8 @@ def links(lines):
 
 def main():
     book_ids = {p.stem for p in BOOKS.glob("*.md")}
+    companion = {p.stem for p in BOOKS.glob("*.md")
+                 if re.search(r"\A---\n(?:.*\n)*?role:\s*companion", read(p))}
     course_ids = {p.stem for p in COURSES.glob("*.md")}
 
     prereqs = {p.stem: links(section(read(p), "Prerequisites")) for p in BOOKS.glob("*.md")}
@@ -44,6 +46,8 @@ def main():
     finished = set(links(section(status, "Finished")))
     reading_ordered = links(section(status, "Reading"))
     reading = set(reading_ordered)
+    skimmed_ordered = links(section(status, "Skimmed"))
+    skimmed = set(skimmed_ordered)
 
     def satisfied(ref):
         if ref in book_ids:
@@ -57,12 +61,16 @@ def main():
 
     finished_ordered = links(section(status, "Finished"))
     open_books = sorted(
-        b for b in book_ids
-        if b not in finished and b not in reading and available(b)
+        b for b in book_ids - companion
+        if b not in finished and b not in reading and b not in skimmed and available(b)
+    )
+    skim_ready = sorted(
+        b for b in companion
+        if b not in finished and b not in reading and b not in skimmed and available(b)
     )
     horizon_books = sorted(
         b for b in book_ids
-        if b not in finished and b not in reading and not available(b)
+        if b not in finished and b not in reading and b not in skimmed and not available(b)
     )
 
     book_to_courses = {b: [] for b in book_ids}
@@ -109,7 +117,9 @@ def main():
 
     dump("Finished", finished_ordered)
     dump("Reading", reading_ordered)
+    dump("Skimmed", skimmed_ordered)
     dump_open(open_books)
+    dump("Companions ready to skim", skim_ready)
     dump("Horizon", horizon_books, unmet=True)
 
 

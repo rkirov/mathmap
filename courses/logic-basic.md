@@ -1,9 +1,17 @@
+---
+area: foundations
+mathlib: partial
+---
 # Logic (Basic)
 
 ## Members
 - [[enderton-mathematical-logic]]
 - [[van-dalen-logic-and-structure]]
 - [[avigad-mathematical-logic-and-computation]]
+- [[hofstadter-godel-escher-bach]]
+- [[manin-course-mathematical-logic]]
+- [[kunen-foundations-of-mathematics]]
+- [[stillwell-reverse-mathematics]]
 
 ## Notes
 First-order logic through completeness, compactness, models.

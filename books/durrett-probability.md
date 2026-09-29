@@ -1,7 +1,7 @@
 # Durrett, Probability: Theory and Examples
 
 ## Prerequisites
-- [[analysis-advanced]]
+- [[measure-theory]]
 
 ## Notes
 Author: Durrett. Graduate standard, measure-theoretic. Proof-centric

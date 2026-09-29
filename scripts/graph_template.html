@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mathmap</title>
+<style>
+:root {
+  --bg: #f6f4ef;
+  --lane: #efece4;
+  --surface: #ffffff;
+  --ink: #1f1e1c;
+  --muted: #6d6a63;
+  --faint: #a8a49b;
+  --line: #dcd7cc;
+  --edge: #b3ad9f;
+  --accent: #b4441f;
+  --finished: #2e8555;
+  --finished-bg: #e6f2ea;
+  --reading: #c07f0a;
+  --reading-bg: #fbf0d9;
+  --open: #2d68c4;
+  --open-bg: #e6eefa;
+  --locked: #9d998f;
+  --shadow: 0 1px 2px rgba(40,30,10,.06), 0 2px 8px rgba(40,30,10,.05);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181b; --lane: #1c1e22; --surface: #23262b; --ink: #e9e6df; --muted: #a09c93;
+    --faint: #6b6860; --line: #353840; --edge: #555a63; --accent: #f08a5d;
+    --finished: #5cc389; --finished-bg: #1f3328; --reading: #e7ab3c; --reading-bg: #3a2f18;
+    --open: #6ea1f0; --open-bg: #1d2a40; --locked: #7c7a73;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 8px rgba(0,0,0,.25);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17181b; --lane: #1c1e22; --surface: #23262b; --ink: #e9e6df; --muted: #a09c93;
+  --faint: #6b6860; --line: #353840; --edge: #555a63; --accent: #f08a5d;
+  --finished: #5cc389; --finished-bg: #1f3328; --reading: #e7ab3c; --reading-bg: #3a2f18;
+  --open: #6ea1f0; --open-bg: #1d2a40; --locked: #7c7a73;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 8px rgba(0,0,0,.25);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; }
+button { font: inherit; color: inherit; }
+
+/* ---------- stage ---------- */
+#stage { position: fixed; inset: 0 400px 0 0; overflow: hidden; cursor: grab; touch-action: none; }
+#stage.dragging { cursor: grabbing; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 1; }
+
+.lane { position: absolute; left: 0; border-top: 1px solid var(--line); }
+.lane.alt { background: var(--lane); }
+.lane-label { position: absolute; left: 20px; top: 18px; width: 130px; font-family: var(--serif); font-size: 17px; line-height: 1.2; color: var(--muted); font-style: italic; }
+.stage-label { position: absolute; top: 18px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+.card { position: absolute; z-index: 2; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--locked); border-radius: 6px; box-shadow: var(--shadow); transition: opacity .15s, box-shadow .15s, border-color .15s; }
+.card .head { height: 38px; padding: 0 10px 0 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.card .title { flex: 1; min-width: 0; font-family: var(--serif); font-size: 15.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card .badge { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 5px; border-radius: 3px; color: var(--accent); border: 1px solid currentColor; white-space: nowrap; }
+.card.s-satisfied { border-left-color: var(--finished); }
+.card.s-satisfied .head { background: var(--finished-bg); }
+.card.s-active { border-left-color: var(--reading); }
+.card.s-active .head { background: var(--reading-bg); }
+.card.s-open { border-left-color: var(--open); }
+.card.s-locked .title { color: var(--muted); }
+
+.row { height: 25px; padding: 0 10px 0 11px; display: flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap; overflow: hidden; font-size: 12.5px; }
+.row:first-of-type { margin-top: 4px; }
+.row:hover, .card .head:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.row .who { font-weight: 600; flex: 0 0 auto; max-width: 62%; overflow: hidden; text-overflow: ellipsis; }
+.row .what { flex: 1 1 0; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; border: 1.5px solid var(--locked); }
+.st-finished .dot, .dot.st-finished { background: var(--finished); border-color: var(--finished); }
+.st-reading .dot, .dot.st-reading { background: var(--reading); border-color: var(--reading); }
+.st-open .dot, .dot.st-open { border-color: var(--open); background: var(--open-bg); }
+.row.st-locked .who { color: var(--muted); font-weight: 500; }
+.row.covered { opacity: .5; }
+.row .ext, .item .ext { flex: none; color: var(--faint); text-decoration: none; padding: 0 2px; }
+.row .ext:hover, .item .ext:hover { color: var(--open); }
+.row .tag + .ext { margin-left: 4px; }
+.row .what + .ext { margin-left: auto; }
+.row.more { color: var(--faint); font-size: 11.5px; padding-left: 27px; }
+.row.skimmed { opacity: 1; }
+.row.companion .who { font-weight: 500; font-style: italic; }
+.row .tag, .item .tag { flex: none; margin-left: auto; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
+.item .tag { margin-left: 6px; }
+.tag.prob { color: var(--accent); }
+.row.skimmed .dot, .dot.st-skimmed { border-color: var(--finished); background: linear-gradient(90deg, var(--finished) 50%, transparent 50%); }
+.row.covered .who { font-weight: 500; }
+
+/* highlight states */
+#world.has-sel .card { opacity: .28; }
+#world.has-sel .card.anc, #world.has-sel .card.desc, #world.has-sel .card.sel { opacity: 1; }
+.card.sel { box-shadow: 0 0 0 2px var(--ink), var(--shadow); }
+.card.route { box-shadow: 0 0 0 2px var(--accent), var(--shadow); }
+.row.sel { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+#world.has-search .card:not(.match) { opacity: .2; }
+.card.match { box-shadow: 0 0 0 2px var(--open), var(--shadow); }
+
+path.e { fill: none; stroke: var(--edge); stroke-width: 1.3; opacity: .7; transition: opacity .15s; marker-end: url(#arr); }
+path.e.partial { stroke-dasharray: 4 3; }
+#world.has-sel path.e { opacity: .08; }
+#world.has-sel path.e.up { opacity: 1; stroke: var(--accent); stroke-width: 2; }
+#world.has-sel path.e.down { opacity: .9; stroke: var(--open); stroke-width: 1.8; }
+path.e.hl { opacity: 1; stroke: var(--ink); stroke-width: 2; }
+
+/* ---------- toolbar ---------- */
+#tools { position: fixed; top: 14px; left: 14px; display: flex; gap: 6px; z-index: 5; }
+#search { width: 240px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; box-shadow: var(--shadow); }
+#search:focus { outline: 2px solid var(--open); outline-offset: -1px; }
+.tbtn { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; box-shadow: var(--shadow); font-size: 16px; line-height: 1; }
+.tbtn:hover { border-color: var(--muted); }
+
+/* ---------- panel ---------- */
+#panel { position: fixed; top: 0; right: 0; bottom: 0; width: 400px; overflow-y: auto; background: var(--surface); border-left: 1px solid var(--line); padding: 22px 24px 40px; z-index: 6; }
+#panel h1 { font-family: var(--serif); font-size: 26px; font-weight: 600; margin: 0; }
+#panel h2 { font-family: var(--serif); font-size: 21px; font-weight: 600; margin: 4px 0 2px; line-height: 1.25; }
+#panel h3 { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 26px 0 8px; font-weight: 600; }
+#panel .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+#panel .back { background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; font-size: 13px; margin-bottom: 12px; }
+#panel .back:hover { color: var(--ink); }
+#panel a { color: var(--open); text-decoration: none; }
+#panel a:hover { text-decoration: underline; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px 2px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.notes { font-size: 14px; line-height: 1.6; color: var(--ink); }
+.notes p { margin: 0 0 10px; }
+.notes code { font-size: 12.5px; background: var(--lane); padding: 1px 4px; border-radius: 3px; }
+
+.item { display: flex; gap: 10px; align-items: baseline; padding: 7px 8px; margin: 0 -8px; border-radius: 5px; cursor: pointer; }
+.item:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.item .dot { position: relative; top: 1px; }
+.item .main { flex: 1; min-width: 0; }
+.item .t { font-weight: 600; }
+.item .d { color: var(--muted); font-size: 12.5px; margin-top: 2px; line-height: 1.4; }
+.item .n { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.item.dimmed .t { color: var(--muted); font-weight: 500; }
+
+.now { border: 1px solid var(--line); border-left: 4px solid var(--reading); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+.now:hover { border-color: var(--muted); border-left-color: var(--reading); }
+.now .t { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.now .d { color: var(--muted); font-size: 12.5px; margin-top: 3px; line-height: 1.45; }
+
+.goal { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+.goal .gh { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; cursor: pointer; }
+.goal .gh .t { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.goal .gh .n { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.step { font-size: 12px; padding: 2px 7px; border-radius: 4px; background: var(--lane); color: var(--muted); cursor: pointer; border: 1px solid transparent; }
+.step.ready { color: var(--open); border-color: color-mix(in srgb, var(--open) 50%, transparent); background: var(--open-bg); }
+.step.active { color: var(--reading); border-color: color-mix(in srgb, var(--reading) 50%, transparent); background: var(--reading-bg); }
+.step:hover { border-color: var(--muted); }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; margin: 0 4px 5px 0; padding: 3px 9px 3px 7px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 12.5px; background: var(--surface); }
+.chip:hover { border-color: var(--muted); }
+.chip.inline { margin: 0; padding: 0 5px; border: 0; background: var(--lane); font-size: inherit; }
+
+.legend { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.legend svg { display: block; }
+.stat { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 760px) {
+  #stage { inset: 0 0 46vh 0; }
+  #panel { top: auto; left: 0; width: auto; height: 46vh; border-left: 0; border-top: 1px solid var(--line); padding: 16px 16px 32px; }
+  #search { width: calc(100vw - 16px - 16px - 4 * 40px); }
+  #tools { left: 16px; top: 12px; }
+}
+</style>
+</head>
+<body>
+<div id="stage"><div id="world"><svg id="edges"><defs>
+  <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0.5 L7.5,4 L0,7.5z" fill="context-stroke"/></marker>
+</defs></svg></div></div>
+<div id="tools">
+  <input id="search" type="search" placeholder="Search  ( / )" autocomplete="off" aria-label="Search courses and books">
+  <button class="tbtn" id="zin" title="Zoom in" aria-label="Zoom in">+</button>
+  <button class="tbtn" id="zout" title="Zoom out" aria-label="Zoom out">−</button>
+  <button class="tbtn" id="fit" title="Fit (f)" aria-label="Fit to screen">⤢</button>
+  <button class="tbtn" id="all" title="Show or hide companions in cards" aria-label="Toggle companions">☰</button>
+</div>
+<aside id="panel"></aside>
+
+<script>
+const D = __DATA__;
+
+// ---------- model ----------
+const C = Object.fromEntries(D.courses.map(c => [c.id, c]));
+const B = D.books;
+const AREA_IDX = Object.fromEntries(D.areas.map((a, i) => [a.id, i]));
+const sat = new Set(D.courses.filter(c => c.status === 'satisfied').map(c => c.id));
+
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+function splitTitle(label) {
+  const i = label.indexOf(' — '), j = label.indexOf(', ');
+  const k = i >= 0 ? i : j;
+  return k < 0 ? [label, ''] : [label.slice(0, k), label.slice(k + (i >= 0 ? 3 : 2))];
+}
+// Companion books are for skimming: shown in cards, ignored for structure.
+const primaries = id => { const p = C[id].members.filter(b => !B[b].companion); return p.length ? p : C[id].members; };
+const coursePre = id => [...new Set(primaries(id).flatMap(b => B[b].prereqs))];
+const dependents = {};
+D.courses.forEach(c => coursePre(c.id).forEach(p => (dependents[p] ??= []).push(c.id)));
+function closure(starts, next) {
+  const seen = new Set(), st = [...starts];
+  while (st.length) for (const y of next(st.pop()) || []) if (!seen.has(y)) { seen.add(y); st.push(y); }
+  return seen;
+}
+const ancestorsOf = ids => { const s = closure(ids, coursePre); ids.forEach(i => s.add(i)); return s; };
+const descendantsOf = id => closure([id], x => dependents[x]);
+
+// Cheapest set of unsatisfied courses needed to satisfy `c`, choosing one
+// member book per course (a book being read always wins; ties go to the
+// member listed first).
+const needMemo = new Map();
+function need(c) {
+  if (needMemo.has(c)) return needMemo.get(c);
+  let res;
+  if (sat.has(c)) res = { set: new Set(), pick: C[c].members.find(b => B[b].status === 'finished') };
+  else {
+    for (const b of primaries(c)) {
+      const s = new Set([c]);
+      B[b].prereqs.forEach(p => need(p).set.forEach(x => s.add(x)));
+      const score = B[b].status === 'reading' ? -1 : s.size;
+      if (!res || score < res.score) res = { set: s, pick: b, score };
+    }
+  }
+  needMemo.set(c, res);
+  return res;
+}
+function routeFor(courseIds) {
+  const s = new Set();
+  courseIds.forEach(c => need(c).set.forEach(x => s.add(x)));
+  return [...s].sort((a, b) => C[a].layer - C[b].layer || AREA_IDX[C[a].area] - AREA_IDX[C[b].area]);
+}
+const stepState = c => {
+  const b = need(c).pick;
+  if (B[b].status === 'reading') return 'active';
+  return B[b].prereqs.every(p => sat.has(p)) ? 'ready' : 'later';
+};
+// Books that become startable once course `c` is satisfied.
+function opens(c) {
+  if (sat.has(c)) return [];
+  return Object.keys(B).filter(b => B[b].status === 'locked' && !B[b].companion && B[b].prereqs.includes(c)
+    && B[b].prereqs.every(p => p === c || sat.has(p)));
+}
+
+// ---------- layout ----------
+const W = 272, HEAD = 38, ROW = 25, PADB = 9, COLGAP = 104, CELLGAP = 16, LANEPAD = 50, GUTTER = 176, RIGHTPAD = 60;
+// Companions collapse into one "+N" row unless ?all is in the URL; ones
+// you've touched (skimmed, reading, finished) always stay visible.
+const SHOW_ALL = new URLSearchParams(location.search).has('all');
+const shown = id => SHOW_ALL ? C[id].members
+  : C[id].members.filter(b => !B[b].companion || B[b].skimmed || B[b].status === 'reading' || B[b].status === 'finished');
+const hiddenCount = id => C[id].members.length - shown(id).length;
+const cardH = id => HEAD + 4 + (shown(id).length + (hiddenCount(id) ? 1 : 0)) * ROW + PADB;
+const maxLayer = Math.max(...D.courses.map(c => c.layer));
+const pos = {};
+const cells = {};
+D.courses.forEach(c => (cells[`${c.area}|${c.layer}`] ??= []).push(c.id));
+const rank = { satisfied: 0, active: 1, open: 2, locked: 3 };
+const order = {};
+for (let l = 0; l <= maxLayer; l++) {
+  for (const a of D.areas) {
+    const ids = cells[`${a.id}|${l}`] || [];
+    const key = id => {
+      const ps = coursePre(id).filter(p => C[p].layer < l);
+      if (!ps.length) return rank[C[id].status];
+      return 10 + ps.reduce((s, p) => s + AREA_IDX[C[p].area] * 100 + order[p], 0) / ps.length;
+    };
+    ids.sort((x, y) => key(x) - key(y) || x.localeCompare(y)).forEach((id, i) => { order[id] = i; });
+  }
+}
+const laneY = {}, laneH = {};
+let y = 0;
+D.areas.forEach(a => {
+  let h = 0;
+  for (let l = 0; l <= maxLayer; l++) {
+    const ids = cells[`${a.id}|${l}`] || [];
+    const hh = ids.reduce((s, id) => s + cardH(id), 0) + Math.max(0, ids.length - 1) * CELLGAP;
+    h = Math.max(h, hh);
+  }
+  laneY[a.id] = y; laneH[a.id] = h + LANEPAD + 26;
+  y += laneH[a.id];
+});
+const WORLD_W = GUTTER + (maxLayer + 1) * (W + COLGAP) - COLGAP + RIGHTPAD;
+const WORLD_H = y;
+for (const [key, ids] of Object.entries(cells)) {
+  const [a, l] = key.split('|');
+  let cy = laneY[a] + LANEPAD;
+  ids.forEach(id => { pos[id] = { x: GUTTER + +l * (W + COLGAP), y: cy, h: cardH(id) }; cy += cardH(id) + CELLGAP; });
+}
+
+// ---------- render ----------
+const world = document.getElementById('world');
+const svg = document.getElementById('edges');
+world.style.width = WORLD_W + 'px'; world.style.height = WORLD_H + 'px';
+svg.setAttribute('width', WORLD_W); svg.setAttribute('height', WORLD_H);
+
+let html = '';
+D.areas.forEach((a, i) => {
+  html += `<div class="lane${i % 2 ? ' alt' : ''}" style="top:${laneY[a.id]}px;height:${laneH[a.id]}px;width:${WORLD_W}px">`
+    + `<div class="lane-label">${esc(a.label)}</div></div>`;
+});
+for (let l = 0; l <= maxLayer; l++) {
+  html += `<div class="stage-label" style="left:${GUTTER + l * (W + COLGAP) + 2}px">${l === 0 ? 'No prerequisites' : 'Stage ' + (l + 1)}</div>`;
+}
+const MATHLIB = {
+  strong: 'strong — most definitions and main theorems exist',
+  partial: 'partial — core definitions, some main theorems missing',
+  thin: 'thin — expect to build much of the theory yourself',
+  native: 'native — this is what Lean is',
+};
+// One short label per row, most informative first.
+const tagFor = bk => bk.skimmed ? '' : bk.problems ? 'problems' : bk.medium !== 'book' ? bk.medium : bk.companion ? 'skim' : '';
+const STATUS_WORD = { satisfied: 'done', active: 'in progress', open: 'open', locked: 'locked' };
+for (const c of D.courses) {
+  const p = pos[c.id];
+  const badges = (c.goal ? '<span class="badge" title="Goal (preferences.md)">goal</span>' : '')
+    + (c.focus ? '<span class="badge" title="Current focus (preferences.md)">focus</span>' : '');
+  html += `<div class="card s-${c.status}" data-course="${c.id}" style="left:${p.x}px;top:${p.y}px;width:${W}px;height:${p.h}px">`
+    + `<div class="head" title="${esc(c.label)} — ${STATUS_WORD[c.status]}"><span class="title">${esc(c.label)}</span>${badges}</div>`;
+  for (const b of shown(c.id)) {
+    const bk = B[b], [who, what] = splitTitle(bk.label);
+    const tip = bk.label + (bk.status === 'locked' ? ' — needs ' + bk.prereqs.filter(x => !sat.has(x)).map(x => C[x].label).join(', ') : '');
+    const tip2 = tip + (bk.medium !== 'book' ? ` — ${bk.medium === 'video' ? 'video lectures' : 'lecture notes'}` : '')
+      + (bk.skimmed ? ' — skimmed' : bk.problems ? ' — problem book' : bk.companion ? ' — companion' : '')
+      + (bk.tradition ? ` — ${bk.tradition} school` : '');
+    const tagText = tagFor(bk);
+    html += `<div class="row st-${bk.status}${bk.covered ? ' covered' : ''}${bk.skimmed ? ' skimmed' : ''}${bk.companion ? ' companion' : ''}" data-book="${b}" title="${esc(tip2)}">`
+      + `<i class="dot"></i><span class="who">${esc(who)}</span><span class="what">${esc(what)}</span>${tagText ? `<span class="tag${bk.problems ? ' prob' : ''}">${tagText}</span>` : ''}`
+      + (bk.url ? `<a class="ext" href="${esc(bk.url)}" target="_blank" rel="noopener" title="Open ${esc(bk.url)}">↗</a>` : '') + '</div>';
+  }
+  const hid = hiddenCount(c.id);
+  if (hid) html += `<div class="row more" title="Open the course to see them, or show all with the ☰ button">+ ${hid} companion${hid === 1 ? '' : 's'} to skim or watch</div>`;
+  html += '</div>';
+}
+world.insertAdjacentHTML('beforeend', html);
+
+const cardEl = {}, rowEl = {};
+world.querySelectorAll('.card').forEach(el => { cardEl[el.dataset.course] = el; });
+world.querySelectorAll('.row').forEach(el => { rowEl[el.dataset.book] = el; });
+
+const edgeEls = [];
+const NS = 'http://www.w3.org/2000/svg';
+for (const e of D.edges) {
+  const s = pos[e.s], t = pos[e.t];
+  const sx = s.x + W, sy = s.y + HEAD / 2;
+  const targets = e.all ? [t.y + HEAD / 2]
+    : e.books.map(b => t.y + HEAD + 4 + shown(e.t).indexOf(b) * ROW + ROW / 2);
+  for (const ty of targets) {
+    let d;
+    if (s.x < t.x) {
+      // forward: right edge of source → left edge of target
+      const tx = t.x - 2, dx = Math.max(48, (tx - sx) * 0.45);
+      d = `M${sx},${sy} C${sx + dx},${sy} ${tx - dx},${ty} ${tx},${ty}`;
+    } else if (s.x === t.x) {
+      // same column (only a partial prereq can do this): bracket on the right
+      const tx = t.x + W + 2, bulge = 34 + Math.min(40, Math.abs(ty - sy) * 0.06);
+      d = `M${sx},${sy} C${sx + bulge},${sy} ${tx + bulge},${ty} ${tx},${ty}`;
+    } else {
+      // source is in a later column: left edge of source → right end of the book row
+      const x0 = s.x, tx = t.x + W + 2, dx = Math.max(30, (x0 - tx) * 0.45);
+      d = `M${x0},${sy} C${x0 - dx},${sy} ${tx + dx},${ty} ${tx},${ty}`;
+    }
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('class', 'e' + (e.all ? '' : ' partial'));
+    svg.appendChild(path);
+    edgeEls.push({ el: path, s: e.s, t: e.t });
+  }
+}
+
+// ---------- highlight ----------
+let selection = null; // {kind:'course'|'book', id}
+function applyHighlight() {
+  world.querySelectorAll('.sel,.anc,.desc,.route').forEach(el => el.classList.remove('sel', 'anc', 'desc', 'route'));
+  edgeEls.forEach(e => e.el.classList.remove('up', 'down'));
+  world.classList.toggle('has-sel', !!selection);
+  if (!selection) return;
+  let courseId, up, route;
+  if (selection.kind === 'course') {
+    courseId = selection.id;
+    up = ancestorsOf([courseId]);
+    route = new Set(routeFor([courseId]));
+  } else {
+    const b = B[selection.id];
+    courseId = b.course;
+    up = ancestorsOf(b.prereqs); up.add(courseId);
+    route = new Set(routeFor(b.prereqs));
+    rowEl[selection.id]?.classList.add('sel'); // collapsed companions have no row
+  }
+  const down = descendantsOf(courseId); down.add(courseId);
+  up.forEach(id => cardEl[id].classList.add('anc'));
+  down.forEach(id => cardEl[id].classList.add('desc'));
+  route.forEach(id => { if (id !== courseId) cardEl[id].classList.add('route'); });
+  cardEl[courseId].classList.add('sel');
+  for (const e of edgeEls) {
+    if (up.has(e.s) && up.has(e.t)) e.el.classList.add('up');
+    else if (down.has(e.s) && down.has(e.t)) e.el.classList.add('down');
+  }
+}
+world.addEventListener('pointerover', ev => {
+  const card = ev.target.closest('.card');
+  edgeEls.forEach(e => e.el.classList.toggle('hl', !!card && !selection && (e.s === card.dataset.course || e.t === card.dataset.course)));
+});
+world.addEventListener('pointerleave', () => edgeEls.forEach(e => e.el.classList.remove('hl')));
+
+// ---------- pan / zoom ----------
+const stage = document.getElementById('stage');
+const view = { x: 0, y: 0, k: 1 };
+const applyView = () => { world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`; };
+const clampK = k => Math.min(2, Math.max(0.15, k));
+function zoomAt(px, py, factor) {
+  const k = clampK(view.k * factor);
+  view.x = px - (px - view.x) * (k / view.k);
+  view.y = py - (py - view.y) * (k / view.k);
+  view.k = k; applyView();
+}
+let anim = null;
+function animateTo(target, ms = 280) {
+  cancelAnimationFrame(anim);
+  const from = { ...view }, t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3);
+    view.x = from.x + (target.x - from.x) * e; view.y = from.y + (target.y - from.y) * e; view.k = from.k + (target.k - from.k) * e;
+    applyView();
+    if (t < 1) anim = requestAnimationFrame(step);
+  };
+  anim = requestAnimationFrame(step);
+}
+function fitView(animated) {
+  const r = stage.getBoundingClientRect();
+  const k = clampK(Math.min((r.width - 20) / WORLD_W, (r.height - 70) / WORLD_H));
+  const target = { k, x: (r.width - WORLD_W * k) / 2, y: 60 };
+  animated ? animateTo(target) : (Object.assign(view, target), applyView());
+}
+function centerOn(courseId) {
+  const r = stage.getBoundingClientRect(), p = pos[courseId];
+  const k = Math.max(view.k, 0.75);
+  const cx = p.x + W / 2, cy = p.y + p.h / 2;
+  const vx = (cx * view.k + view.x), vy = (cy * view.k + view.y);
+  const margin = 60;
+  if (k === view.k && vx > margin && vx < r.width - margin && vy > margin + 40 && vy < r.height - margin) return;
+  animateTo({ k, x: r.width / 2 - cx * k, y: r.height / 2 - cy * k });
+}
+
+stage.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const r = stage.getBoundingClientRect();
+  if (ev.ctrlKey || ev.metaKey) zoomAt(ev.clientX - r.left, ev.clientY - r.top, Math.exp(-ev.deltaY * 0.01));
+  else { view.x -= ev.deltaX; view.y -= ev.deltaY; applyView(); }
+}, { passive: false });
+
+const pointers = new Map();
+let drag = null, pinch = null;
+stage.addEventListener('pointerdown', ev => {
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  stage.setPointerCapture(ev.pointerId);
+  if (pointers.size === 1) drag = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y, moved: false, target: ev.target };
+  else if (pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), k: view.k };
+    drag = null;
+  }
+});
+stage.addEventListener('pointermove', ev => {
+  if (!pointers.has(ev.pointerId)) return;
+  pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (pinch && pointers.size === 2) {
+    const [a, b] = [...pointers.values()], r = stage.getBoundingClientRect();
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, (pinch.k * d / pinch.d) / view.k);
+  } else if (drag) {
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) > 4) { drag.moved = true; stage.classList.add('dragging'); }
+    if (drag.moved) { view.x = drag.vx + dx; view.y = drag.vy + dy; applyView(); }
+  }
+});
+const endPointer = ev => {
+  pointers.delete(ev.pointerId);
+  if (pointers.size < 2) pinch = null;
+  if (drag && ev.type === 'pointerup' && !drag.moved && drag.target.closest?.('a.ext')) {
+    window.open(drag.target.closest('a.ext').href, '_blank', 'noopener');
+  } else if (drag && ev.type === 'pointerup' && !drag.moved) {
+    const row = drag.target.closest?.('.row[data-book]'), card = drag.target.closest?.('.card');
+    if (row) select('book', row.dataset.book);
+    else if (card) select('course', card.dataset.course);
+    else select(null);
+  }
+  drag = null; stage.classList.remove('dragging');
+};
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', endPointer);
+const zoomCenter = f => { const r = stage.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, f); };
+document.getElementById('zin').onclick = () => zoomCenter(1.25);
+document.getElementById('zout').onclick = () => zoomCenter(0.8);
+document.getElementById('fit').onclick = () => fitView(true);
+document.getElementById('all').onclick = () => {
+  const u = new URL(location.href);
+  SHOW_ALL ? u.searchParams.delete('all') : u.searchParams.set('all', '');
+  location.href = u.toString().replace('all=', 'all');
+};
+if (SHOW_ALL) document.getElementById('all').style.borderColor = 'var(--open)';
+
+// ---------- panel ----------
+const panel = document.getElementById('panel');
+const dot = st => `<i class="dot st-${st}"></i>`;
+const cDot = c => dot({ satisfied: 'finished', active: 'reading', open: 'open', locked: 'locked' }[C[c].status]);
+const courseChip = c => `<span class="chip" data-go="course:${c}">${cDot(c)}${esc(C[c].label)}</span>`;
+const bookShort = b => splitTitle(B[b].label)[0];
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+function linkify(text) {
+  return esc(text).replace(/https?:\/\/[^\s)]+/g, u => {
+    const short = u.replace(/^https?:\/\/(www\.)?/, '').replace(/^github\.com\//, '');
+    return `<a href="${u}" target="_blank" rel="noopener">${short}</a>`;
+  });
+}
+function renderNotes(md) {
+  return md.split(/\n\s*\n/).map(par => '<p>' + esc(par.replace(/\n/g, ' '))
+    .replace(/\[\[([^\]|#]+)(?:\|([^\]]+))?\]\]/g, (m, id, alias) => {
+      const kind = C[id] ? 'course' : B[id] ? 'book' : null;
+      if (!kind) return esc(alias || id);
+      return `<span class="chip inline" data-go="${kind}:${id}">${esc(alias || (C[id] || B[id]).label)}</span>`;
+    })
+    .replace(/`([^`]+)`/g, (m, id) => C[id] ? `<span class="chip inline" data-go="course:${id}">${esc(C[id].label)}</span>` : `<code>${id}</code>`)
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/(https?:\/\/[^\s<]+[^\s<.,;:)])|\b(PL[0-9A-Za-z_-]{20,})\b/g, (m, url, pl) => {
+      const href = url || `https://www.youtube.com/playlist?list=${pl}`;
+      const text = url ? url.replace(/^https?:\/\/(www\.)?/, '') : 'playlist ↗';
+      return `<a href="${href}" target="_blank" rel="noopener">${text}</a>`;
+    }) + '</p>').join('');
+}
+function routeSteps(route) {
+  return `<div class="steps">${route.map(c => {
+    const st = stepState(c);
+    return `<span class="step ${st}" data-go="course:${c}" title="via ${esc(B[need(c).pick].label)}">${esc(C[c].label)}</span>`;
+  }).join('')}</div>`;
+}
+function routeList(route) {
+  return route.map((c, i) => {
+    const b = need(c).pick, st = stepState(c);
+    const note = st === 'active' ? 'reading now' : st === 'ready' ? 'can start now' : 'needs ' + B[b].prereqs.filter(p => !sat.has(p)).map(p => C[p].label).join(', ');
+    return `<div class="item${st === 'later' ? ' dimmed' : ''}" data-go="book:${b}"><span class="n stat">${i + 1}.</span>`
+      + `<div class="main"><div class="t">${esc(C[c].label)}</div><div class="d">${esc(B[b].label)} · ${esc(note)}</div></div></div>`;
+  }).join('');
+}
+
+function renderHome() {
+  const nFinished = D.finished.length, nBooks = Object.keys(B).length;
+  let h = `<h1>mathmap</h1><div class="sub stat">${nFinished} of ${nBooks} books finished · ${sat.size} of ${D.courses.length} courses done</div>`;
+
+  if (D.reading.length) {
+    h += '<h3>Reading now</h3>';
+    for (const b of D.reading) {
+      const c = B[b].course, o = opens(c);
+      const bits = [];
+      if (B[b].detail) bits.push(linkify(B[b].detail));
+      if (c) bits.push(`${esc(C[c].label)}${o.length ? ` · finishing opens ${plural(o.length, 'book')}` : ''}`);
+      h += `<div class="now" data-go="book:${b}"><div class="t">${esc(B[b].label)}</div><div class="d">${bits.join('<br>')}</div></div>`;
+    }
+  }
+
+  const next = D.courses.filter(c => c.status === 'open')
+    .map(c => ({ c: c.id, n: opens(c.id).length }))
+    .sort((x, y) => C[y.c].focus - C[x.c].focus || y.n - x.n || C[x.c].label.localeCompare(C[y.c].label));
+  if (next.length) {
+    h += '<h3>Could start now</h3>';
+    for (const { c, n } of next) {
+      const books = primaries(c).filter(b => B[b].status === 'open').map(bookShort);
+      h += `<div class="item" data-go="course:${c}">${dot('open')}<div class="main"><div class="t">${esc(C[c].label)}${C[c].focus ? ' <span class="sub" style="font-weight:400">· focus</span>' : ''}</div>`
+        + `<div class="d">${books.map(esc).join(' · ')}</div></div><span class="n stat" title="books that become startable">${n ? 'opens ' + n : ''}</span></div>`;
+    }
+  }
+
+  const skim = Object.keys(B).filter(b => B[b].companion && B[b].status === 'open' && !B[b].skimmed)
+    .sort((x, y) => C[B[x].course].layer - C[B[y].course].layer || AREA_IDX[C[B[x].course].area] - AREA_IDX[C[B[y].course].area]);
+  if (skim.length) {
+    h += '<h3>Companions ready now</h3>';
+    for (const b of skim) {
+      const tagText = tagFor(B[b]);
+      h += `<div class="item" data-go="book:${b}">${dot('open')}<div class="main"><div class="t">${esc(B[b].label)}</div>`
+        + `<div class="d">${esc(C[B[b].course].label)}${B[b].tradition ? ' · ' + esc(B[b].tradition) + ' school' : ''}</div></div>`
+        + `<span class="tag${B[b].problems ? ' prob' : ''}">${tagText}</span>`
+        + (B[b].url ? `<a class="ext" href="${esc(B[b].url)}" target="_blank" rel="noopener">↗</a>` : '') + '</div>';
+    }
+  }
+
+  if (D.goals.length) {
+    h += '<h3>Routes to goals</h3>';
+    for (const g of D.goals) {
+      const r = routeFor([g]);
+      h += `<div class="goal"><div class="gh" data-go="course:${g}"><span class="t">${esc(C[g].label)}</span>`
+        + `<span class="n stat">${r.length ? plural(r.length, 'course') + ' to go' : 'done'}</span></div>${routeSteps(r)}</div>`;
+    }
+  }
+
+  if (D.finished.length) {
+    h += '<h3>Finished</h3>';
+    for (const b of D.finished) {
+      h += `<div class="item" data-go="book:${b}">${dot('finished')}<div class="main"><div class="t">${esc(B[b].label)}</div>`
+        + (B[b].detail ? `<div class="d">${linkify(B[b].detail)}</div>` : '') + '</div></div>';
+    }
+  }
+
+  if (D.skimmed.length) {
+    h += '<h3>Skimmed</h3>';
+    for (const b of D.skimmed) {
+      h += `<div class="item" data-go="book:${b}">${dot('skimmed')}<div class="main"><div class="t">${esc(B[b].label)}</div>`
+        + (B[b].detail ? `<div class="d">${linkify(B[b].detail)}</div>` : '') + '</div></div>';
+    }
+  }
+
+  h += `<h3>Reading the map</h3><div class="legend">
+    ${dot('finished')}<span>Finished — course done</span>
+    ${dot('reading')}<span>Reading</span>
+    ${dot('skimmed')}<span>Skimmed — no exercises; doesn't count toward prerequisites</span>
+    <span class="tag" style="font-size:10px;letter-spacing:.05em;color:var(--faint)">SKIM</span><span>Companion: best skimmed next to a primary text; ignored when planning routes</span>
+    <span class="tag prob" style="font-size:10px;letter-spacing:.05em">PROBLEMS</span><span>Problem book: the theory is built through problems</span>
+    <span class="tag" style="font-size:10px;letter-spacing:.05em;color:var(--faint)">NOTES · VIDEO</span><span>Free lecture notes or a video lecture series (linked from its page)</span>
+    ${dot('open')}<span>Open — all prerequisites met</span>
+    ${dot('locked')}<span>Locked</span>
+    <svg width="28" height="8"><path d="M0 4H28" stroke="var(--edge)" stroke-width="1.5"/></svg><span>Every book in the course needs it</span>
+    <svg width="28" height="8"><path d="M0 4H28" stroke="var(--edge)" stroke-width="1.5" stroke-dasharray="4 3"/></svg><span>Only the book it points at needs it</span>
+    <span></span><span>Faded rows are alternatives in a course already done. Implied edges are omitted. Rows follow subject; columns are prerequisite depth. Click anything; <b>/</b> to search (try “russian”, “problems”, “video”), <b>Esc</b> to reset, <b>f</b> to fit. Scroll to pan, pinch or ⌘-scroll to zoom.</span>
+  </div>`;
+  return h;
+}
+
+function renderCourse(id) {
+  const c = C[id];
+  let h = `<button class="back" data-go="home">← Overview</button>`;
+  h += `<h2>${esc(c.label)}</h2><div class="sub">${esc(D.areas[AREA_IDX[c.area]].label)} · ${STATUS_WORD[c.status]}${c.goal ? ' · goal' : ''}${c.focus ? ' · focus' : ''}</div>`;
+  if (c.mathlib) h += `<div class="sub" title="How much of this material Mathlib already has (rough)">Mathlib coverage: ${esc(MATHLIB[c.mathlib] || c.mathlib)}</div>`;
+  h += '<h3>Books</h3>';
+  for (const b of c.members) {
+    const bk = B[b], missing = bk.prereqs.filter(p => !sat.has(p));
+    const d = bk.skimmed ? 'skimmed' + (bk.detail ? ' — ' + bk.detail : '')
+      : bk.companion ? 'companion for skimming' + (bk.status === 'locked' ? ' · needs ' + missing.map(p => C[p].label).join(', ') : ' · ready')
+      : bk.status === 'locked' ? 'needs ' + missing.map(p => C[p].label).join(', ')
+      : bk.covered ? 'alternative — course already done' : bk.status === 'open' ? 'can start now' : bk.status;
+    h += `<div class="item${bk.covered && !bk.skimmed ? ' dimmed' : ''}" data-go="book:${b}">${dot(bk.skimmed ? 'skimmed' : bk.status)}<div class="main"><div class="t">${esc(bk.label)}</div><div class="d">${esc(d)}</div></div></div>`;
+  }
+  const pre = coursePre(id);
+  if (pre.length) {
+    h += '<h3>Prerequisites</h3>';
+    h += pre.map(p => {
+      const who = primaries(id).filter(b => B[b].prereqs.includes(p));
+      const d = who.length < primaries(id).length ? 'only for ' + who.map(bookShort).join(', ') : sat.has(p) ? 'done' : '';
+      return `<div class="item" data-go="course:${p}">${cDot(p)}<div class="main"><div class="t">${esc(C[p].label)}</div>${d ? `<div class="d">${esc(d)}</div>` : ''}</div></div>`;
+    }).join('');
+  }
+  const dep = dependents[id] || [];
+  if (dep.length) h += '<h3>Leads to</h3>' + dep.sort((a, b) => C[a].layer - C[b].layer).map(courseChip).join('');
+  const r = routeFor([id]);
+  if (r.length > 1 || (r.length === 1 && stepState(id) === 'later')) {
+    h += `<h3>Shortest route · ${plural(r.length, 'course')}</h3>` + routeList(r);
+  }
+  if (c.notes) h += `<h3>Notes</h3><div class="notes">${renderNotes(c.notes)}</div>`;
+  return h;
+}
+
+function renderBook(id) {
+  const b = B[id], c = b.course;
+  let h = `<button class="back" data-go="home">← Overview</button>`;
+  h += `<h2>${esc(b.label)}</h2><div class="sub">${b.skimmed ? 'skimmed — companion reading; does not satisfy prerequisites' : b.companion ? (b.status === 'locked' ? 'companion for skimming · locked' : 'companion for skimming — ready') : { finished: 'finished', reading: 'reading', open: b.covered ? 'open · alternative to a finished book' : 'open — can start now', locked: 'locked' }[b.status]}</div>`;
+  const facets = [b.medium === 'video' && 'video lectures', b.medium === 'notes' && 'lecture notes',
+    b.problems && 'problem book', b.tradition && `${b.tradition} school`].filter(Boolean).map(esc);
+  if (b.url) facets.push(`<a href="${esc(b.url)}" target="_blank" rel="noopener">${b.medium === 'video' ? 'Watch' : 'Open'} ↗</a>`);
+  if (facets.length) h += `<div class="sub">${facets.join(' · ')}</div>`;
+  if (b.detail) h += `<div class="sub" style="margin-top:8px">${linkify(b.detail)}</div>`;
+  if (c) h += '<h3>Course</h3>' + courseChip(c);
+  if (b.prereqs.length) h += '<h3>Prerequisites</h3>' + b.prereqs.map(courseChip).join('');
+  const r = routeFor(b.prereqs);
+  if (r.length) h += `<h3>Route to start · ${plural(r.length, 'course')}</h3>` + routeList(r);
+  if (c && !sat.has(c)) {
+    const o = opens(c);
+    if (o.length) h += `<h3>Finishing it opens</h3>` + o.map(x => `<span class="chip" data-go="book:${x}">${dot('open')}${esc(bookShort(x))}</span>`).join('');
+  }
+  const dep = c ? dependents[c] || [] : [];
+  if (dep.length) h += '<h3>Leads to</h3>' + dep.sort((a, b) => C[a].layer - C[b].layer).map(courseChip).join('');
+  if (b.notes) h += `<h3>Notes</h3><div class="notes">${renderNotes(b.notes)}</div>`;
+  return h;
+}
+
+function render() {
+  panel.innerHTML = !selection ? renderHome() : selection.kind === 'course' ? renderCourse(selection.id) : renderBook(selection.id);
+  panel.scrollTop = 0;
+}
+panel.addEventListener('click', ev => {
+  if (ev.target.closest('a')) return;
+  const go = ev.target.closest('[data-go]')?.dataset.go;
+  if (!go) return;
+  if (go === 'home') return select(null);
+  const [kind, id] = go.split(':');
+  select(kind, id, true);
+});
+
+function select(kind, id, pan) {
+  selection = kind ? { kind, id } : null;
+  const h = selection ? `#${kind === 'book' ? 'b' : 'c'}/${id}` : ' ';
+  history.replaceState(null, '', h === ' ' ? location.pathname : h);
+  applyHighlight();
+  render();
+  if (selection && pan) centerOn(kind === 'course' ? id : B[id].course);
+}
+
+// ---------- search & keys ----------
+const search = document.getElementById('search');
+let matches = [];
+search.addEventListener('input', () => {
+  const q = search.value.trim().toLowerCase();
+  world.querySelectorAll('.match').forEach(el => el.classList.remove('match'));
+  world.classList.toggle('has-search', !!q);
+  if (!q) { matches = []; return; }
+  matches = D.courses.filter(c => c.label.toLowerCase().includes(q) || c.id.includes(q)
+    || c.members.some(b => B[b].label.toLowerCase().includes(q) || B[b].tradition.includes(q)
+      || (B[b].problems && 'problems'.startsWith(q)) || (B[b].medium !== 'book' && B[b].medium.startsWith(q)))).map(c => c.id);
+  matches.forEach(id => cardEl[id].classList.add('match'));
+});
+search.addEventListener('keydown', ev => {
+  if (ev.key === 'Enter' && matches.length) {
+    const q = search.value.trim().toLowerCase();
+    const c = matches[0];
+    const b = C[c].members.find(x => B[x].label.toLowerCase().includes(q) || B[x].tradition.includes(q));
+    const titleHit = C[c].label.toLowerCase().includes(q);
+    search.value = ''; search.dispatchEvent(new Event('input')); search.blur();
+    titleHit || !b ? select('course', c, true) : select('book', b, true);
+  } else if (ev.key === 'Escape') { search.value = ''; search.dispatchEvent(new Event('input')); search.blur(); }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.target === search) return;
+  if (ev.key === '/') { ev.preventDefault(); search.focus(); }
+  else if (ev.key === 'Escape') select(null);
+  else if (ev.key === 'f') fitView(true);
+});
+
+// ---------- boot ----------
+function homeView() {
+  // Readable zoom anchored at the top-left (where the current work lives);
+  // ⤢ / f gives the whole map.
+  const r = stage.getBoundingClientRect();
+  const k = clampK(Math.min(1, Math.max(0.72, (r.width - 20) / WORLD_W)));
+  Object.assign(view, { k, x: 10 - 8 * k, y: 60 });
+  applyView();
+}
+homeView();
+const m = location.hash.match(/^#([bc])\/(.+)$/);
+if (m && (m[1] === 'c' ? C[m[2]] : B[m[2]])) select(m[1] === 'c' ? 'course' : 'book', m[2], true);
+else render();
+</script>
+</body>
+</html>

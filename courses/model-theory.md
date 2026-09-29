@@ -1,3 +1,7 @@
+---
+area: foundations
+mathlib: partial
+---
 # Model Theory
 
 ## Members

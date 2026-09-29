@@ -1,11 +1,19 @@
-# Algebraic Geometry
+---
+area: algebraic-geometry
+mathlib: partial
+---
+# Algebraic Geometry (Schemes)
 
 ## Members
-- [[harris-algebraic-geometry-first-course]]
+- [[vakil-rising-sea]]
 - [[eisenbud-harris-geometry-of-schemes]]
+- [[mumford-red-book]]
+- [[liu-algebraic-geometry-arithmetic-curves]]
+- [[borcherds-schemes-videos]]
 
 ## Notes
-Varieties, morphisms, sheaves, schemes. Harris's *A First Course*
-takes the classical variety-first route; Eisenbud–Harris introduces
-schemes through explicit examples. Different entry points to the
-same subject.
+Schemes, sheaves, morphisms, quasicoherent sheaves, cohomology. Vakil
+is the full course and the stated favorite; Eisenbud–Harris builds
+intuition for schemes through explicit examples and pairs well
+alongside it. Best approached after
+[[algebraic-geometry-classical]].

@@ -1,3 +1,6 @@
+---
+url: https://www.mat.univie.ac.at/~gerald/ftp/book-ode/
+---
 # Teschl, Ordinary Differential Equations and Dynamical Systems
 
 ## Prerequisites

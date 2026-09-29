@@ -1,3 +1,6 @@
+---
+url: https://arxiv.org/abs/1612.09375
+---
 # Leinster, Basic Category Theory
 
 ## Prerequisites

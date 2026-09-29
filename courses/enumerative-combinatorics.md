@@ -1,6 +1,11 @@
+---
+area: combinatorics
+mathlib: partial
+---
 # Enumerative Combinatorics
 
 ## Members
+- [[wilf-generatingfunctionology]]
 - [[stanley-enumerative-combinatorics-1]]
 
 ## Notes

@@ -1,3 +1,6 @@
+---
+url: https://pi.math.cornell.edu/~hatcher/AT/ATpage.html
+---
 # Hatcher, Algebraic Topology
 
 ## Prerequisites

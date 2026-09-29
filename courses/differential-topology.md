@@ -1,3 +1,7 @@
+---
+area: topology-geometry
+mathlib: thin
+---
 # Differential Topology
 
 ## Members

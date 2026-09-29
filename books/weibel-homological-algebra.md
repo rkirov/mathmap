@@ -1,3 +1,6 @@
+---
+role: companion
+---
 # Weibel, An Introduction to Homological Algebra
 
 ## Prerequisites
@@ -7,4 +10,4 @@
 ## Notes
 Author: Weibel. Graduate standard reference. Comprehensive: derived
 categories, group cohomology, simplicial methods. Assumes more
-category theory than Rotman.
+category theory than Rotman. Look things up here after Rotman.

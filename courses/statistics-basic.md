@@ -1,3 +1,7 @@
+---
+area: probability
+mathlib: thin
+---
 # Statistics (Basic)
 
 ## Members

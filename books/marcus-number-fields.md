@@ -3,6 +3,7 @@
 ## Prerequisites
 - [[algebra-basic]]
 - [[number-theory-basic]]
+- [[galois-theory]]
 
 ## Notes
 Author: Marcus. Advanced-undergrad algebraic number theory. Exceptionally

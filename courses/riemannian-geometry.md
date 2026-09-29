@@ -1,9 +1,17 @@
+---
+area: topology-geometry
+mathlib: thin
+---
 # Riemannian Geometry
 
 ## Members
-- [[do-carmo-riemannian-geometry]]
 - [[lee-riemannian-manifolds]]
+- [[do-carmo-riemannian-geometry]]
 - [[petersen-riemannian-geometry]]
+- [[berger-panoramic-riemannian]]
+- [[schuller-gravity-light-videos]]
+- [[tong-general-relativity-notes]]
+- [[nicolaescu-geometry-of-manifolds-notes]]
 
 ## Notes
 Riemannian metrics, connections, geodesics, curvature. do Carmo is

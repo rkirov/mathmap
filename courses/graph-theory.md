@@ -1,3 +1,7 @@
+---
+area: combinatorics
+mathlib: partial
+---
 # Graph Theory
 
 ## Members

@@ -8,9 +8,11 @@ ROOT = Path(__file__).resolve().parent.parent
 BOOKS = ROOT / "books"
 COURSES = ROOT / "courses"
 STATUS = ROOT / "status.md"
+PREFS = ROOT / "preferences.md"
 
 WIKILINK = re.compile(r"\[\[([^\]|#]+)(?:\|[^\]]+)?(?:#[^\]]+)?\]\]")
 KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+AREA = re.compile(r"\A---\n(?:.*\n)*?area:\s*([a-z0-9-]+)\s*\n(?:.*\n)*?---\n")
 
 
 def read(path):
@@ -57,6 +59,17 @@ def main():
             pr = []
         if section(text, "Members") is not None:
             errs.append(f"{rel}: book has ## Members")
+        role = re.search(r"\A---\n(?:.*\n)*?role:\s*(\S+)", text)
+        if role and role.group(1) not in ("primary", "companion"):
+            errs.append(f"{rel}: role must be primary or companion, got {role.group(1)}")
+        medium = re.search(r"\A---\n(?:.*\n)*?medium:\s*(\S+)", text)
+        if medium and medium.group(1) not in ("book", "notes", "video"):
+            errs.append(f"{rel}: medium must be book, notes, or video, got {medium.group(1)}")
+        url = re.search(r"\A---\n(?:.*\n)*?url:\s*(\S+)", text)
+        if url and not url.group(1).startswith(("http://", "https://")):
+            errs.append(f"{rel}: url must be http(s), got {url.group(1)}")
+        if medium and medium.group(1) != "book" and not url:
+            errs.append(f"{rel}: {medium.group(1)} needs a url")
         refs = links(pr)
         prereqs[p.stem] = refs
         for r in refs:
@@ -75,6 +88,8 @@ def main():
             mb = []
         if section(text, "Prerequisites") is not None:
             errs.append(f"{rel}: course has ## Prerequisites")
+        if not AREA.match(text):
+            errs.append(f"{rel}: missing `area:` frontmatter")
         refs = links(mb)
         members[p.stem] = refs
         if not refs:
@@ -87,10 +102,14 @@ def main():
 
     status_text = read(STATUS)
     if status_text:
-        for heading in ("Finished", "Reading"):
+        for heading in ("Finished", "Reading", "Skimmed"):
             for r in links(section(status_text, heading)):
                 if r not in book_ids:
                     errs.append(f"status.md: ## {heading} references non-book [[{r}]]")
+
+    for r in WIKILINK.findall(read(PREFS)):
+        if r not in all_ids:
+            errs.append(f"preferences.md: unresolved [[{r}]]")
 
     graph = {**prereqs, **members}
     color = {n: 0 for n in graph}  # 0=white 1=gray 2=black
@@ -103,7 +122,7 @@ def main():
             if color[dep] == 1:
                 cyc = path[path.index(dep):] + [dep]
                 errs.append("cycle: " + " -> ".join(cyc))
-                return
+                continue
             if color[dep] == 0:
                 dfs(dep, path + [dep])
         color[node] = 2

@@ -2,6 +2,7 @@
 
 ## Prerequisites
 - [[commutative-algebra-basic]]
+- [[algebraic-number-theory]]
 
 ## Notes
 Author: Silverman. Example-rich introduction to elliptic curves over

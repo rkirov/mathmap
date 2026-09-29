@@ -1,8 +1,13 @@
+---
+area: categories
+mathlib: strong
+---
 # Category Theory
 
 ## Members
 - [[leinster-basic-category-theory]]
 - [[riehl-category-theory-in-context]]
+- [[mac-lane-categories-working-mathematician]]
 
 ## Notes
 Categories, functors, natural transformations, limits, adjoints,

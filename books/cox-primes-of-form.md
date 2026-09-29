@@ -3,6 +3,7 @@
 ## Prerequisites
 - [[algebra-basic]]
 - [[number-theory-basic]]
+- [[galois-theory]]
 
 ## Notes
 Author: Cox. Class field theory developed to answer one concrete

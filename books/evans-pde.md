@@ -2,6 +2,7 @@
 
 ## Prerequisites
 - [[analysis-advanced]]
+- [[measure-theory]]
 - [[linear-algebra-basic]]
 
 ## Notes
